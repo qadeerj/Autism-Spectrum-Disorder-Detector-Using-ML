@@ -1,0 +1,13 @@
+# Starter requirements.txt for Autism Spectrum Disorder Using ABIDE project
+
+numpy
+pandas
+scikit-learn
+matplotlib
+seaborn
+nibabel
+scipy
+torch
+torchvision
+flask
+jupyter 
