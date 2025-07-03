@@ -28,7 +28,7 @@ Autism Spectrum Disorder Using ABIDE/
 │   ├── best_fmri_expert.pth
 │   ├── best_fusion_model.pth
 │   └── best_smri_expert.pth
-├── FRONT_END/FRONT_END(FINAL)/ # Web frontend (Flask)
+├── Web app/ # Web frontend (Flask)
 │   ├── app.py
 │   ├── static/
 │   ├── templates/
@@ -104,11 +104,11 @@ Pretrained weights are stored in `Model Weights/`. You can use these directly fo
 ---
 
 ## 🌐 Running the Frontend (Flask App)
-The web frontend is in `FRONT_END/FRONT_END(FINAL)/` and is built with Flask.
+The web frontend is in `Web app/` and is built with Flask.
 
 1. Navigate to the frontend directory:
    ```bash
-   cd FRONT_END/FRONT_END(FINAL)/
+   cd Web app/
    ```
 2. Run the Flask app:
    ```bash
