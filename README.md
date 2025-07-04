@@ -8,9 +8,6 @@ This project provides a full pipeline for detecting Autism Spectrum Disorder (AS
 
 ```
 Autism Spectrum Disorder Using ABIDE/
-├── DataSet/                  # Contains ABIDE Preprocess dataset splits
-│   ├── dataset_splits_fMRI.zip
-│   └── dataset_splits_sMRI.zip
 ├── Pre-processing-code/      # Scripts for data preprocessing
 │   ├── Extract.py
 │   ├── Preprocess.py
