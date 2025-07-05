@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import TensorDataset
 from torchvision.models import resnet18
-from BackBone02 import FMRIExpertClassifier  # 👈 import your model class
+from BackBone02 import FMRIExpertClassifier  
 
 # --- Load test data ---
 X_test = np.load(r"/home/autism/Final_Cap02/Autism Spectrum Disorder Using ABIDE/DataSet/dataset_splits_fMRI/dataset_splits/test/X_test.npy")
@@ -20,7 +20,7 @@ test_dataset = TensorDataset(X_test, y_test)
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 model = FMRIExpertClassifier()
-model.load_state_dict(torch.load(r"//home/autism/Final_Cap02/Autism Spectrum Disorder Using ABIDE/Model Weights/best_fmri_expert.pth", map_location=DEVICE))
+model.load_state_dict(torch.load(r"/home/autism/Final_Cap02/Autism Spectrum Disorder Using ABIDE/Model Weights/best_fmri_expert.pth", map_location=DEVICE))
 model.to(DEVICE)
 model.eval()
 
