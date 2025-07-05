@@ -21,7 +21,7 @@ np.random.seed(SEED)
 if torch.cuda.is_available():
     torch.cuda.manual_seed_all(SEED)
 
-# --- sMRI Model Definition ---
+# --- fMRI Model Definition ---
 class FMRIExpertClassifier(nn.Module):
     """
     ResNet-18 backbone + embedding head + classifier head for 2D fMRI slices.
@@ -54,7 +54,7 @@ class FMRIExpertClassifier(nn.Module):
         logits = self.classifier(e).squeeze(1) # (B,)
         return logits
 
-# --- Data Helper for sMRI ---
+# --- Data Helper for fMRI ---
 def load_split(name: str):
     X_path = os.path.join(DATA_DIR, name, f"X_{name}.npy")
     y_path = os.path.join(DATA_DIR, name, f"y_{name}.npy")
