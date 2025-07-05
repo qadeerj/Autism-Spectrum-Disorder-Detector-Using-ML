@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import TensorDataset
 from torchvision.models import resnet18
-from BackBone01 import SMRIExpertClassifier  # 👈 import your model class
+from BackBone01 import SMRIExpertClassifier  
 
 # --- Load test data ---
 X_test = np.load(r"/home/autism/Final_Cap02/Autism Spectrum Disorder Using ABIDE/DataSet/dataset_splits_sMRI/dataset_splits/test/X_test.npy")
