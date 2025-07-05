@@ -42,7 +42,7 @@ Autism Spectrum Disorder Using ABIDE/
 
 ### 1. Clone the Repository
 ```bash
-git clone <repo-url>
+git clone https://github.com/qadeerj/Autism-Spectrum-Disorder-Detector-Using-ML.git
 cd "Autism Spectrum Disorder Using ABIDE"
 ```
 
