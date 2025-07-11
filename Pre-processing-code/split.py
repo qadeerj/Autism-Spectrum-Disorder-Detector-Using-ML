@@ -1,4 +1,3 @@
-
 import os
 import numpy as np
 import pandas as pd
@@ -10,89 +9,108 @@ LABELS_CSV   = r"C:\sMRI_ABIDE_3d-to-2d\filtered_abide_1.csv"
 OUTPUT_DIR   = r"C:\sMRI_ABIDE_3d-to-2d\dataset_splits"
 RANDOM_SEED  = 42
 TEST_SIZE    = 0.15
-VAL_SIZE     = TEST_SIZE / (1 - TEST_SIZE)
+VAL_SIZE     = TEST_SIZE / (1 - TEST_SIZE)  # ≈ 0.176 to maintain 70/15/15 split
 
-# --- Load & normalize labels CSV ---
-print("Loading labels CSV...")
+# --- Load and prepare labels ---
+print("Loading label CSV...")
 labels_df = pd.read_csv(LABELS_CSV)
 labels_df['base_id'] = labels_df['FILE_ID'].str.replace(r'\.nii(\.gz)?$', '', regex=True)
 labels_df.set_index('base_id', inplace=True)
-print(f"Found {len(labels_df)} entries in labels CSV.\n")
+print(f"Found {len(labels_df)} labeled subjects.\n")
 
-# Pre-sort label IDs by length to match the longest prefix first
-sorted_ids = sorted(labels_df.index.astype(str), key=len, reverse=True)
+# --- Match slice files with subject IDs ---
+print("Matching slices with subject IDs...")
+files = [f for f in os.listdir(SLICE_DIR) if f.lower().endswith('.npy')]
+subject_to_files = {}
 
-def load_file_paths_and_labels(slice_dir, labels_df):
-    file_paths = []
-    y = []
-    files = [f for f in os.listdir(slice_dir) if f.lower().endswith('.npy')]
-    print(f"Found {len(files)} slice files in {slice_dir}\nProcessing filenames and labels...")
+for fname in files:
+    name_no_ext = os.path.splitext(fname)[0]
+    for base_id in labels_df.index:
+        if name_no_ext.startswith(base_id + '_') or name_no_ext == base_id:
+            subject_to_files.setdefault(base_id, []).append(os.path.join(SLICE_DIR, fname))
+            break
 
-    for idx, fname in enumerate(files, 1):
-        name_no_ext = os.path.splitext(fname)[0]
-        subject = None
-        for base_id in sorted_ids:
-            if name_no_ext.startswith(base_id + '_') or name_no_ext == base_id:
-                subject = base_id
-                break
-        if subject is None:
-            raise KeyError(f"No label for subject ID extracted from file '{fname}'")
+print(f"Matched {len(subject_to_files)} unique subjects with slice files.\n")
 
-        label = labels_df.at[subject, 'labels']
-        file_path = os.path.join(slice_dir, fname)
-        file_paths.append(file_path)
-        y.append(label)
+# --- Prepare subject-wise list and labels ---
+subjects = list(subject_to_files.keys())
+labels = [labels_df.at[subj, 'labels'] for subj in subjects]
 
-        if idx % 1000 == 0 or idx == len(files):
-            print(f"  Processed {idx}/{len(files)} files")
-    print("All files processed.\n")
-    return file_paths, np.array(y, dtype=np.int64)
-
-# --- Execute loading of file paths and labels ---
-file_paths, y = load_file_paths_and_labels(SLICE_DIR, labels_df)
-print(f"Total slices: {len(file_paths)}, Total labels: {len(y)}\n")
-
-# --- Train/Test/Val split using file paths ---
-print("Splitting into train/val/test...")
-# Initial split into train and test
-file_paths_train, file_paths_test, y_train, y_test = train_test_split(
-    file_paths, y, test_size=TEST_SIZE, stratify=y, random_state=RANDOM_SEED
+# --- Subject-level train/val/test split ---
+train_subs, test_subs, _, _ = train_test_split(
+    subjects, labels, test_size=TEST_SIZE, stratify=labels, random_state=RANDOM_SEED
 )
-# Split train into train and val
-file_paths_train, file_paths_val, y_train, y_val = train_test_split(
-    file_paths_train, y_train, test_size=VAL_SIZE, stratify=y_train, random_state=RANDOM_SEED
-)
-print(f"  Train: {len(file_paths_train)} samples")
-print(f"  Val:   {len(file_paths_val)} samples")
-print(f"  Test:  {len(file_paths_test)} samples\n")
 
-# --- Function to process and save splits incrementally ---
+train_labels = [labels_df.at[s, 'labels'] for s in train_subs]
+
+# ✅ FIXED: correct variable order to avoid swapped val/train
+train_subs, val_subs, _, _ = train_test_split(
+    train_subs, train_labels, test_size=VAL_SIZE, stratify=train_labels, random_state=RANDOM_SEED
+)
+
+# --- Sanity Check: Ensure no subject leakage ---
+def check_no_leakage(train_subs, val_subs, test_subs):
+    train_set = set(train_subs)
+    val_set = set(val_subs)
+    test_set = set(test_subs)
+
+    overlap_train_val = train_set.intersection(val_set)
+    overlap_train_test = train_set.intersection(test_set)
+    overlap_val_test = val_set.intersection(test_set)
+
+    if overlap_train_val or overlap_train_test or overlap_val_test:
+        print("\n❌ DATA LEAK DETECTED!")
+        if overlap_train_val:
+            print(f"Overlap between Train and Val: {overlap_train_val}")
+        if overlap_train_test:
+            print(f"Overlap between Train and Test: {overlap_train_test}")
+        if overlap_val_test:
+            print(f"Overlap between Val and Test: {overlap_val_test}")
+        raise ValueError("Subjects appear in multiple splits!")
+    else:
+        print("\n✅ No data leakage: All subjects are uniquely assigned to one split.")
+
+check_no_leakage(train_subs, val_subs, test_subs)
+
+# --- Helper: Gather slice paths and labels for subjects ---
+def collect_slices(subjects_list):
+    paths, ys = [], []
+    for subj in subjects_list:
+        label = labels_df.at[subj, 'labels']
+        files = subject_to_files[subj]
+        paths.extend(files)
+        ys.extend([label] * len(files))
+    return paths, np.array(ys, dtype=np.int64)
+
+file_paths_train, y_train = collect_slices(train_subs)
+file_paths_val, y_val     = collect_slices(val_subs)
+file_paths_test, y_test   = collect_slices(test_subs)
+
+print(f"\nSubjects per split:")
+print(f"  Train subjects: {len(train_subs)}")
+print(f"  Val subjects:   {len(val_subs)}")
+print(f"  Test subjects:  {len(test_subs)}")
+
+print(f"\nSlices per split:")
+print(f"  Train slices:   {len(file_paths_train)}")
+print(f"  Val slices:     {len(file_paths_val)}")
+print(f"  Test slices:    {len(file_paths_test)}")
+
+# --- Save split slices ---
 def process_and_save_split(file_paths_split, y_split, split_name):
     print(f"\nProcessing {split_name} set...")
-    X_split = []
-    for idx, file_path in enumerate(file_paths_split, 1):
-        arr = np.load(file_path).astype(np.float32)
-        X_split.append(arr)
-        if idx % 1000 == 0 or idx == len(file_paths_split):
-            print(f"  Loaded {idx}/{len(file_paths_split)} slices")
-    
-    # Convert to array and add channel dimension
-    X_split = np.array(X_split)
-    X_split = X_split[..., np.newaxis]  # Add channel dimension
-    
-    # Save to disk
+    X_split = [np.load(p).astype(np.float32) for p in file_paths_split]
+    X_split = np.array(X_split)[..., np.newaxis]  # Add channel dim
+
     out_dir = os.path.join(OUTPUT_DIR, split_name)
     os.makedirs(out_dir, exist_ok=True)
-    x_path = os.path.join(out_dir, f"X_{split_name}.npy")
-    y_path = os.path.join(out_dir, f"y_{split_name}.npy")
-    np.save(x_path, X_split)
-    np.save(y_path, y_split)
-    print(f"Saved {split_name} set with shape {X_split.shape}\n")
+    np.save(os.path.join(out_dir, f"X_{split_name}.npy"), X_split)
+    np.save(os.path.join(out_dir, f"y_{split_name}.npy"), y_split)
+    print(f"✅ Saved {split_name} set: {X_split.shape}")
 
-# --- Process and save each split ---
 process_and_save_split(file_paths_train, y_train, 'train')
 process_and_save_split(file_paths_val, y_val, 'val')
 process_and_save_split(file_paths_test, y_test, 'test')
 
-print("\nAll done! Your splits are saved as .npy files in:")
-print(f"  {OUTPUT_DIR}")
+print("\n🎉 All done! Safe subject-wise splits with verification saved at:")
+print(f"   {OUTPUT_DIR}")
